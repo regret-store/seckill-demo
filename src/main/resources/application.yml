@@ -1,0 +1,38 @@
+server:
+  port: 8080
+
+spring:
+  data:
+    redis:
+      host: localhost
+      port: 6378
+      database: 0
+
+
+  datasource:
+    url: "jdbc:mysql://localhost:3306/seckill_demo?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false"
+    username: root       # 换成你的MySQL账号
+    password: ${DB_PASSWORD}     # 换成你的MySQL密码
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    # 开启生产者确认机制 (correlated: 消息唯一ID关联回调)
+    publisher-confirm-type: correlated
+    listener:
+      simple:
+        # 开启消费者手动 ACK（默认是 auto，也就是拿到消息就自动确认，非常容易丢消息）
+        acknowledge-mode: manual
+        prefetch: 1 # 每次只拉取一条消息（确保能者多劳，不会因为某个消费者卡住导致所有消息堆积）
+
+mybatis-plus:
+  configuration:
+    # 开启驼峰命名自动映射 (比如数据库的 create_time 自动映射到 Java 的 createTime)
+    map-underscore-to-camel-case: true
+    # 把执行的 SQL 打印到控制台，方便我们后面调试秒杀逻辑
+    #log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+

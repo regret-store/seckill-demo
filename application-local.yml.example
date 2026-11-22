@@ -1,0 +1,4 @@
+# 复制此文件为 application-local.yml，填入你自己的数据库密码
+spring:
+  datasource:
+    password:

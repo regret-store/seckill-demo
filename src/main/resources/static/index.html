@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高并发秒杀系统测试台</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e2f;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #2b2b40;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            width: 400px;
+        }
+        h2 { text-align: center; color: #00e5ff; margin-top: 0; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-size: 14px; color: #a0a0c0; }
+        input {
+            width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #444;
+            background-color: #1e1e2f; color: #fff; box-sizing: border-box;
+        }
+        button {
+            width: 100%; padding: 12px; border: none; border-radius: 6px;
+            cursor: pointer; font-size: 16px; font-weight: bold;
+            transition: all 0.3s;
+        }
+        .btn-get { background-color: #4caf50; color: white; margin-bottom: 10px;}
+        .btn-get:hover { background-color: #45a049; }
+        .btn-seckill { background-color: #ff4757; color: white; }
+        .btn-seckill:hover { background-color: #ff6b81; }
+        .btn-seckill:active { transform: scale(0.98); }
+        .log-box {
+            margin-top: 20px; padding: 10px; background-color: #111;
+            border: 1px solid #333; border-radius: 6px; height: 150px;
+            overflow-y: auto; font-family: monospace; font-size: 12px;
+        }
+        .log-item { margin-bottom: 5px; }
+        .log-success { color: #4caf50; }
+        .log-error { color: #ff4757; }
+        .log-info { color: #00e5ff; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>⚡ 极限秒杀测试台</h2>
+
+    <div class="form-group">
+        <label>商品 ID (Product ID)</label>
+        <input type="number" id="productId" value="1">
+    </div>
+
+    <div class="form-group">
+        <label>用户 ID (User ID)</label>
+        <input type="number" id="userId" value="1001">
+    </div>
+
+    <button class="btn-get" onclick="getProduct()">🔍 获取商品详情 (测缓存)</button>
+    <button class="btn-seckill" onclick="doSeckill()">🚀 立即秒杀 (测限流/MQ)</button>
+
+    <div class="log-box" id="logBox">
+        <div class="log-item log-info">[系统] 测试台已就绪，请操作...</div>
+    </div>
+</div>
+
+<script>
+    const logBox = document.getElementById('logBox');
+
+    // 打印日志到页面
+    function appendLog(msg, type = 'info') {
+        const div = document.createElement('div');
+        div.className = `log-item log-${type}`;
+        div.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        logBox.appendChild(div);
+        logBox.scrollTop = logBox.scrollHeight; // 自动滚动到底部
+    }
+
+    async function getProduct() {
+        const productId = document.getElementById('productId').value;
+        appendLog(`发起查询，商品ID: ${productId}`, 'info');
+
+        try {
+            const response = await fetch(`/product/${productId}`);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+            // 解析统一返回体
+            const res = await response.json();
+
+            if (res.code === 200) {
+                // 注意：这里的 res.data 是我们后端存进 Redis 的 JSON 字符串，还需要再解析一次
+                const product = JSON.parse(res.data);
+                appendLog(`查询成功: 名称=${product.name}, 价格=${product.price}, 库存=${product.stock}`, 'success');
+            } else {
+                // 比如商品不存在，就会走到这里，打印后端定义的 msg
+                appendLog(`查询失败: ${res.msg}`, 'error');
+            }
+        } catch (e) {
+            appendLog(`网络异常: ${e.message}`, 'error');
+        }
+    }
+
+    // 执行秒杀
+    async function doSeckill() {
+        const productId = document.getElementById('productId').value;
+        const userId = document.getElementById('userId').value;
+        appendLog(`用户 ${userId} 发起秒杀...`, 'info');
+
+        try {
+            const response = await fetch(`/seckill/test?productId=${productId}&userId=${userId}`);
+
+            if (!response.ok) {
+                throw new Error(`后端接口请求失败，状态码: ${response.status}`);
+            }
+
+            // 【修改 1】：把 text() 改成 json()，解析后端返回的 Result 对象
+            const res = await response.json();
+
+            // 【修改 2】：根据 code 判断
+            if (res.code === 200) {
+                // 成功，显示 data 里的信息
+                appendLog(`结果: ${res.data}`, 'success');
+            } else {
+                // 失败，显示 msg 里的错误提示
+                appendLog(`结果: ${res.msg}`, 'error');
+            }
+        } catch (e) {
+            appendLog(`网络异常: ${e.message}`, 'error');
+        }
+    }
+</script>
+
+</body>
+</html>
